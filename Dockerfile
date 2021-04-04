@@ -17,7 +17,7 @@ RUN source /os-release && \
     mkdir /install_root \
     && swupd os-install -V ${VERSION_ID} \
     --path /install_root --statedir /swupd-state \
-    --bundles=os-core-update,R-basic,R-extras-dev --no-boot-update
+    --bundles=os-core-update,R-extras-dev --no-boot-update
 
 # For some Host OS configuration with redirect_dir on,
 # extra data are saved on the upper layer when the same
@@ -32,5 +32,42 @@ RUN cd / && \
 FROM clearlinux/os-core:latest
 
 COPY --from=builder /install_root /
+
+ARG R_VERSION
+ARG BUILD_DATE
+ARG CRAN
+ENV BUILD_DATE ${BUILD_DATE:-2021-04-24}
+ENV R_VERSION=${R_VERSION:-4.0.3} \
+    CRAN=${CRAN:-https://packagemanager.rstudio.com/all/2097505} \ 
+    # source packages available as of Apr 1, 2021 1:00 AM GMT+1
+    LC_ALL=en_US.UTF-8 \
+    LANG=en_US.UTF-8 \
+    TERM=xterm
+
+
+## Add a library directory (for user-installed packages)
+# RUN  mkdir -p /usr/lib64/R/site-library \
+#   && chown root /usr/lib64/R/site-library \
+#   && chmod g+ws /usr/lib64/R/site-library \
+#   ## Fix library path
+#   && sed -i '/^R_LIBS_USER=.*$/d' /usr/lib64/R/etc/Renviron \
+#   && echo "R_LIBS_USER=\${R_LIBS_USER-'/usr/lib64/R/site-library'}" >> /usr/lib64/R/etc/Renviron \
+#   && echo "R_LIBS=\${R_LIBS-'/usr/lib64/R/site-library:/usr/lib64/R/library:/usr/lib64/R/library'}" >> /usr/lib64/R/etc/Renviron
+#   ## Use littler installation scripts
+
+# Run rm /usr/bin/r
+
+RUN Rscript -e "install.packages(c('gamlss'), repo = '$CRAN', Ncpus = 15)" 
+
+
+# RUN install2.r -s -r $CRAN -n 15 -e -l /usr/lib64/R/site-library \
+#   'data.table', 'fst', 'qs', 'future', 'future.apply', 'foreach', 'gamlss', 'yaml', 'dqrng', 'MASS', 'remotes', 'BH', 'Rcpp'\
+#   bsplus colourpicker dichromat doFuture doParallel doRNG  DT  \
+#   ggplot2 htmltools iterators  \
+#   plotly promises  remotes rngtools shiny shinyBS shinydashboard shinyjs \
+#   shinythemes shinyWidgets viridis viridisLite wrswoR \
+#   mvtnorm mc2d cowplot 'shiny', 
+
+# RUN installGithub.r "ChristK/CKutils"
 
 CMD ["R"]
